@@ -2,31 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import HomePage from './components/HomePage';
 import AdminPanel from './components/AdminPanel';
-import { getGitHubProducts, saveGitHubProducts, addGitHubProduct, deleteGitHubProduct, clearGitHubProducts } from './services/githubStorage';
+import { getBasicProducts, saveBasicProducts, addBasicProduct, deleteBasicProduct, clearBasicProducts, exportProducts, importProducts } from './services/basicStorage';
 
 // Custom hook for managing products state with cloud storage
 const useProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load products from GitHub storage
+  // Load products from basic storage
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const githubProducts = await getGitHubProducts();
-        setProducts(githubProducts);
+        const basicProducts = await getBasicProducts();
+        setProducts(basicProducts);
         setLoading(false);
       } catch (error) {
         console.error('Error loading products:', error);
-        // Fallback to localStorage
-        try {
-          const savedProducts = localStorage.getItem('aliexpress-products');
-          const parsedProducts = savedProducts ? JSON.parse(savedProducts) : [];
-          setProducts(parsedProducts);
-        } catch (localError) {
-          console.error('Error loading from localStorage:', localError);
-          setProducts([]);
-        }
+        setProducts([]);
         setLoading(false);
       }
     };
@@ -36,7 +28,7 @@ const useProducts = () => {
 
   const updateProducts = async (newProducts) => {
     try {
-      await saveGitHubProducts(newProducts);
+      await saveBasicProducts(newProducts);
       setProducts(newProducts);
     } catch (error) {
       console.error('Error updating products:', error);
@@ -46,7 +38,7 @@ const useProducts = () => {
 
   const addProduct = async (product) => {
     try {
-      await addGitHubProduct(product);
+      await addBasicProduct(product);
       const updatedProducts = [...products, product];
       setProducts(updatedProducts);
     } catch (error) {
@@ -57,7 +49,7 @@ const useProducts = () => {
 
   const deleteProductById = async (productId) => {
     try {
-      await deleteGitHubProduct(productId);
+      await deleteBasicProduct(productId);
       const updatedProducts = products.filter(p => p.ProductId !== productId);
       setProducts(updatedProducts);
     } catch (error) {
@@ -68,11 +60,35 @@ const useProducts = () => {
 
   const clearAllProducts = async () => {
     try {
-      await clearGitHubProducts();
+      await clearBasicProducts();
       setProducts([]);
     } catch (error) {
       console.error('Error clearing all products:', error);
       throw error;
+    }
+  };
+
+  const exportProductsData = async () => {
+    try {
+      return await exportProducts();
+    } catch (error) {
+      console.error('Error exporting products:', error);
+      return false;
+    }
+  };
+
+  const importProductsData = async (file) => {
+    try {
+      const success = await importProducts(file);
+      if (success) {
+        // Reload products after import
+        const importedProducts = await getBasicProducts();
+        setProducts(importedProducts);
+      }
+      return success;
+    } catch (error) {
+      console.error('Error importing products:', error);
+      return false;
     }
   };
 
@@ -82,7 +98,9 @@ const useProducts = () => {
     updateProducts,
     addProduct,
     deleteProduct: deleteProductById,
-    clearAllProducts
+    clearAllProducts,
+    exportProducts: exportProductsData,
+    importProducts: importProductsData
   };
 };
 
@@ -133,7 +151,7 @@ const Navigation = () => {
 
 // Main App component
 const App = () => {
-  const { products, loading, updateProducts } = useProducts();
+  const { products, loading, updateProducts, exportProducts, importProducts } = useProducts();
 
   if (loading) {
     return (
@@ -161,6 +179,8 @@ const App = () => {
               <AdminPanel
                 products={products}
                 onProductsUpdate={updateProducts}
+                onExportProducts={exportProducts}
+                onImportProducts={importProducts}
               />
             }
           />

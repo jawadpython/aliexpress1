@@ -3,10 +3,11 @@ import * as XLSX from 'xlsx';
 import ProductCard from './ProductCard';
 import Notification from './Notification';
 
-const AdminPanel = ({ products, onProductsUpdate }) => {
+const AdminPanel = ({ products, onProductsUpdate, onExportProducts, onImportProducts }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState(null);
   const fileInputRef = useRef(null);
+  const importFileRef = useRef(null);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -102,6 +103,40 @@ const AdminPanel = ({ products, onProductsUpdate }) => {
     showNotification('Product deleted successfully!', 'success');
   };
 
+  const handleExportProducts = async () => {
+    try {
+      const success = await onExportProducts();
+      if (success) {
+        showNotification('Products exported successfully!', 'success');
+      } else {
+        showNotification('Failed to export products', 'error');
+      }
+    } catch (error) {
+      showNotification('Error exporting products', 'error');
+    }
+  };
+
+  const handleImportProducts = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const success = await onImportProducts(file);
+      if (success) {
+        showNotification('Products imported successfully!', 'success');
+      } else {
+        showNotification('Failed to import products', 'error');
+      }
+    } catch (error) {
+      showNotification('Error importing products', 'error');
+    }
+
+    // Reset file input
+    if (importFileRef.current) {
+      importFileRef.current.value = '';
+    }
+  };
+
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -194,19 +229,37 @@ const AdminPanel = ({ products, onProductsUpdate }) => {
             <h2 className="text-xl font-semibold text-gray-800">
               Products ({products.length})
             </h2>
-            {products.length > 0 && (
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete all products?')) {
-                    onProductsUpdate([]);
-                    showNotification('All products deleted!', 'success');
-                  }
-                }}
-                className="text-red-600 hover:text-red-800 text-sm font-medium"
-              >
-                Delete All Products
-              </button>
-            )}
+            <div className="flex space-x-4">
+              {products.length > 0 && (
+                <>
+                  <button
+                    onClick={handleExportProducts}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200"
+                  >
+                    Export Products
+                  </button>
+                  <button
+                    onClick={() => importFileRef.current?.click()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200"
+                  >
+                    Import Products
+                  </button>
+                </>
+              )}
+              {products.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to delete all products?')) {
+                      onProductsUpdate([]);
+                      showNotification('All products deleted!', 'success');
+                    }
+                  }}
+                  className="text-red-600 hover:text-red-800 text-sm font-medium"
+                >
+                  Delete All Products
+                </button>
+              )}
+            </div>
           </div>
 
           {products.length === 0 ? (
@@ -232,6 +285,15 @@ const AdminPanel = ({ products, onProductsUpdate }) => {
           )}
         </div>
       </div>
+
+      {/* Hidden file input for import */}
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json"
+        onChange={handleImportProducts}
+        className="hidden"
+      />
 
       {/* Notification */}
       {notification && (
