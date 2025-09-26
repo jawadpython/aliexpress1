@@ -2,19 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import HomePage from './components/HomePage';
 import AdminPanel from './components/AdminPanel';
-import { getCloudProducts, saveCloudProducts, addCloudProduct, deleteCloudProduct, clearCloudProducts } from './services/cloudStorage';
+import { getGitHubProducts, saveGitHubProducts, addGitHubProduct, deleteGitHubProduct, clearGitHubProducts } from './services/githubStorage';
 
 // Custom hook for managing products state with cloud storage
 const useProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load products from cloud storage
+  // Load products from GitHub storage
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const cloudProducts = await getCloudProducts();
-        setProducts(cloudProducts);
+        const githubProducts = await getGitHubProducts();
+        setProducts(githubProducts);
         setLoading(false);
       } catch (error) {
         console.error('Error loading products:', error);
@@ -36,7 +36,7 @@ const useProducts = () => {
 
   const updateProducts = async (newProducts) => {
     try {
-      await saveCloudProducts(newProducts);
+      await saveGitHubProducts(newProducts);
       setProducts(newProducts);
     } catch (error) {
       console.error('Error updating products:', error);
@@ -46,7 +46,7 @@ const useProducts = () => {
 
   const addProduct = async (product) => {
     try {
-      await addCloudProduct(product);
+      await addGitHubProduct(product);
       const updatedProducts = [...products, product];
       setProducts(updatedProducts);
     } catch (error) {
@@ -57,7 +57,7 @@ const useProducts = () => {
 
   const deleteProductById = async (productId) => {
     try {
-      await deleteCloudProduct(productId);
+      await deleteGitHubProduct(productId);
       const updatedProducts = products.filter(p => p.ProductId !== productId);
       setProducts(updatedProducts);
     } catch (error) {
@@ -68,7 +68,7 @@ const useProducts = () => {
 
   const clearAllProducts = async () => {
     try {
-      await clearCloudProducts();
+      await clearGitHubProducts();
       setProducts([]);
     } catch (error) {
       console.error('Error clearing all products:', error);
