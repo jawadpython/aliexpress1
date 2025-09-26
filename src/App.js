@@ -2,50 +2,83 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import HomePage from './components/HomePage';
 import AdminPanel from './components/AdminPanel';
+import { subscribeToProducts, addProducts, deleteProduct, deleteAllProducts } from './services/firebaseService';
 
-// Custom hook for managing products state
+// Custom hook for managing products state with Firebase
 const useProducts = () => {
-  const [products, setProducts] = useState(() => {
-    // Initialize state with data from localStorage
-    try {
-      const savedProducts = localStorage.getItem('aliexpress-products');
-      return savedProducts ? JSON.parse(savedProducts) : [];
-    } catch (error) {
-      console.error('Error loading products from localStorage:', error);
-      return [];
-    }
-  });
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Save products to localStorage whenever products change
+  // Subscribe to real-time updates from Firebase
   useEffect(() => {
+    const unsubscribe = subscribeToProducts((firebaseProducts) => {
+      // Convert Firebase products to the format expected by components
+      const formattedProducts = firebaseProducts.map(product => ({
+        ProductId: product.id,
+        'Image Url': product['Image Url'],
+        'Product Desc': product['Product Desc'],
+        'Origin Price': product['Origin Price'],
+        'Discount Price': product['Discount Price'],
+        'Promotion Url': product['Promotion Url'],
+        'Commission Rate': product['Commission Rate'],
+        'Positive Feedback': product['Positive Feedback'],
+        'Coupon Info': product['Coupon Info'],
+        'Video Url': product['Video Url']
+      }));
+      
+      setProducts(formattedProducts);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const updateProducts = async (newProducts) => {
     try {
-      localStorage.setItem('aliexpress-products', JSON.stringify(products));
+      // Clear existing products and add new ones
+      await deleteAllProducts();
+      if (newProducts.length > 0) {
+        await addProducts(newProducts);
+      }
     } catch (error) {
-      console.error('Error saving products to localStorage:', error);
+      console.error('Error updating products:', error);
+      throw error;
     }
-  }, [products]);
-
-  const updateProducts = (newProducts) => {
-    setProducts(newProducts);
   };
 
-  const addProduct = (product) => {
-    setProducts(prev => [...prev, product]);
+  const addProduct = async (product) => {
+    try {
+      await addProducts([product]);
+    } catch (error) {
+      console.error('Error adding product:', error);
+      throw error;
+    }
   };
 
-  const deleteProduct = (productId) => {
-    setProducts(prev => prev.filter(p => p.ProductId !== productId));
+  const deleteProductById = async (productId) => {
+    try {
+      await deleteProduct(productId);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
+    }
   };
 
-  const clearAllProducts = () => {
-    setProducts([]);
+  const clearAllProducts = async () => {
+    try {
+      await deleteAllProducts();
+    } catch (error) {
+      console.error('Error clearing all products:', error);
+      throw error;
+    }
   };
 
   return {
     products,
+    loading,
     updateProducts,
     addProduct,
-    deleteProduct,
+    deleteProduct: deleteProductById,
     clearAllProducts
   };
 };
@@ -97,7 +130,18 @@ const Navigation = () => {
 
 // Main App component
 const App = () => {
-  const { products, updateProducts } = useProducts();
+  const { products, loading, updateProducts } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
