@@ -11,10 +11,23 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
+// Check if Firebase is properly configured
+const isFirebaseConfigured = () => {
+  try {
+    return db && db._delegate && db._delegate._databaseId;
+  } catch (error) {
+    return false;
+  }
+};
+
 const PRODUCTS_COLLECTION = 'products';
 
 // Get all products
 export const getProducts = async () => {
+  if (!isFirebaseConfigured()) {
+    throw new Error('Firebase not configured');
+  }
+  
   try {
     const productsRef = collection(db, PRODUCTS_COLLECTION);
     const q = query(productsRef, orderBy('createdAt', 'desc'));
@@ -101,19 +114,29 @@ export const deleteAllProducts = async () => {
 
 // Subscribe to real-time updates
 export const subscribeToProducts = (callback) => {
-  const productsRef = collection(db, PRODUCTS_COLLECTION);
-  const q = query(productsRef, orderBy('createdAt', 'desc'));
+  if (!isFirebaseConfigured()) {
+    console.log('Firebase not configured, skipping real-time subscription');
+    return () => {}; // Return empty unsubscribe function
+  }
   
-  return onSnapshot(q, (querySnapshot) => {
-    const products = [];
-    querySnapshot.forEach((doc) => {
-      products.push({
-        id: doc.id,
-        ...doc.data()
+  try {
+    const productsRef = collection(db, PRODUCTS_COLLECTION);
+    const q = query(productsRef, orderBy('createdAt', 'desc'));
+    
+    return onSnapshot(q, (querySnapshot) => {
+      const products = [];
+      querySnapshot.forEach((doc) => {
+        products.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
+      callback(products);
+    }, (error) => {
+      console.error('Error in real-time subscription:', error);
     });
-    callback(products);
-  }, (error) => {
-    console.error('Error in real-time subscription:', error);
-  });
+  } catch (error) {
+    console.error('Error setting up real-time subscription:', error);
+    return () => {}; // Return empty unsubscribe function
+  }
 };
